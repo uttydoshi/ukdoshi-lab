@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <style>
+    g { stroke: #15171C; }
+    @media (prefers-color-scheme: dark) { g { stroke: #F1F5F9; } }
+  </style>
+  <g fill="none" stroke-linecap="square" stroke-linejoin="miter">
+    <path d="M100 10 L177.94 55 V145 L100 190 L22.06 145 V55 Z" stroke-width="16"/>
+    <g transform="translate(100 100) scale(0.68) translate(-100 -100)" stroke-width="24">
+      <path d="M40 40 V130 A30 30 0 0 0 100 130 V40"/>
+      <path d="M100 40 V160 A60 60 0 0 0 100 40 Z"/>
+    </g>
+  </g>
+  <circle cx="160" cy="160" r="38" fill="#f59e0b" stroke="#fff" stroke-width="10"/>
+</svg>
