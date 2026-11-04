@@ -1,0 +1,85 @@
+/* The lab shares ukdoshi.com's look: Source Serif 4 headings, Figtree body, navy and magenta. */
+@import '@fontsource-variable/source-serif-4/opsz.css';
+@import '@fontsource-variable/figtree/index.css';
+
+:root {
+  --text: #1a1a2e;
+  --dark: #1a1a2e; /* top bar and dark buttons */
+  --muted: #5b5f77;
+  --card: rgb(255 255 255 / 0.7);
+  --border: rgb(26 26 46 / 0.08);
+  --shadow: rgb(60 50 120 / 0.35);
+  --accent: #b5186f; /* magenta, as on ukdoshi.com */
+  --accent-12: color-mix(in srgb, var(--accent) 12%, transparent);
+  --font-heading: 'Source Serif 4 Variable', Georgia, serif;
+  --font-body: 'Figtree Variable', Helvetica, Arial, sans-serif;
+  --page-width: 72rem;
+  --bg: radial-gradient(circle at 20% 15%, #ede9fe, transparent 45%),
+    radial-gradient(circle at 85% 85%, #e0f2fe, transparent 45%), #f8fafc;
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  background-attachment: fixed;
+  color: var(--text);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-variation-settings: 'opsz' 32;
+  letter-spacing: -0.015em;
+}
+
+main > :not(router-outlet) {
+  width: 100%;
+}
+
+/* Every page sits in a frosted card under a magenta heading. */
+.card {
+  width: 100%;
+  margin: 0 auto;
+  max-width: var(--page-width);
+  box-sizing: border-box;
+  padding: 3rem clamp(1.25rem, 5vw, 4.5rem);
+  border: 1px solid var(--border);
+  border-radius: 1.5rem;
+  background: var(--card);
+  box-shadow: 0 1.5rem 3rem -1.5rem var(--shadow);
+  backdrop-filter: blur(12px);
+  line-height: 1.6;
+}
+
+.card h1 {
+  margin: 0 0 1.25rem;
+  font-size: clamp(2.5rem, 9vw, 4rem);
+  line-height: 1.05;
+  color: var(--accent);
+}
+
+.card p {
+  margin: 0 0 1rem;
+  color: var(--muted);
+}
+
+/* Flat white panels group content inside a card. */
+.panel {
+  box-sizing: border-box;
+  padding: 1.75rem 2rem 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: #fff;
+}
+
+@media (max-width: 480px) {
+  .panel {
+    padding: 1.25rem 1.1rem;
+  }
+}

@@ -1,0 +1,22 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+
+# CDK
+infra/cdk.out/
+infra/cdk.context.json
+
+# Node / Angular
+node_modules/
+frontend/dist/
+frontend/.angular/
+
+# OS / editor
+.DS_Store
+.vscode/
+
+# Local notes for Claude (kept off GitHub for now)
+CLAUDE.md
