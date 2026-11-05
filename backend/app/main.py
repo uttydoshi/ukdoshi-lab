@@ -54,9 +54,9 @@ def list_runs():
 
 
 @app.get("/api/recap")
-def run_recap(start: str | None = None, fresh: bool = False):
+def run_recap(start: str | None = None):
     """Minnie and Maverick review one run (by its start time), or the latest run. The run's newest saved recap is
-    reused unless `fresh` asks for another; a new one is saved with the trace of every step that wrote it."""
+    reused, so each run costs one Claude call; a new one is saved with the trace of every step that wrote it."""
     with trace.start("Recap") as recap_trace:
         with trace.step("Fetch the run", "data") as span:
             if start:
@@ -67,7 +67,7 @@ def run_recap(start: str | None = None, fresh: bool = False):
             span.note = "Distance, time, splits and heart rate, from the runs table"
         if run is None:
             return JSONResponse({"detail": "No such run"}, status_code=404)
-        saved = None if fresh else recap.latest(run.start)
+        saved = recap.latest(run.start)
         if saved:
             return {"run": run} | saved.model_dump()
         try:

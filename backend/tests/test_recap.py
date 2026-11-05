@@ -107,12 +107,11 @@ def test_a_saved_recap_is_shown_again_with_its_trace(stored_run, recaps, claude_
     assert again["trace"] == first["trace"]
 
 
-def test_another_take_writes_and_saves_a_new_recap(stored_run, recaps, claude_calls):
+def test_a_run_is_only_ever_recapped_once(stored_run, recaps, claude_calls):
     client.get("/api/recap")
-    fresh = client.get("/api/recap", params={"fresh": "true"}).json()
-    assert fresh["lines"][0]["text"].startswith("Take 2.")
-    assert len(recaps.items) == 2
-    assert client.get("/api/recap").json()["lines"] == fresh["lines"]  # the newest is the one shown
+    client.get("/api/recap", params={"fresh": "true"})  # the option "Another take" used is gone
+    assert len(claude_calls) == 1
+    assert len(recaps.items) == 1
 
 
 def test_recap_of_a_missing_run(stored_run):

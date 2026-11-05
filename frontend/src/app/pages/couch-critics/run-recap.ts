@@ -206,34 +206,9 @@ import { clock, km, pace, Recap, RecapLine, Run, runName, when, wholeSplits } fr
       line-height: 1.5;
     }
 
-    .again {
-      min-height: 48px;
-      padding: 0 1.25rem;
-      border: 1px solid var(--border);
-      border-radius: 0.9rem;
-      background: #fff;
-      color: var(--text);
-      font: inherit;
-      font-weight: 600;
-      cursor: pointer;
-    }
-
-    .again:disabled {
-      cursor: wait;
-      opacity: 0.6;
-    }
-
-    .again:focus-visible,
     .behind:focus-visible {
       outline: 2px solid var(--accent);
       outline-offset: 2px;
-    }
-
-    .actions {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 0.5rem 1.25rem;
     }
 
     .behind {
@@ -306,12 +281,9 @@ import { clock, km, pace, Recap, RecapLine, Run, runName, when, wholeSplits } fr
             }
           </div>
         }
-        <div class="actions">
-          <button type="button" class="again" (click)="loadRecap(true)" [disabled]="loading()">Another take</button>
-          @if (recap()) {
-            <a class="behind" routerLink="behind-the-scenes">Behind the scenes ›</a>
-          }
-        </div>
+        @if (recap()) {
+          <a class="behind" routerLink="behind-the-scenes">Behind the scenes ›</a>
+        }
       </section>
     </article>
   `,
@@ -324,7 +296,6 @@ export default class RunRecap {
   protected readonly run = signal<Run | null>(null);
   protected readonly recap = signal<Recap | null>(null);
   protected readonly recapError = signal('');
-  protected readonly loading = signal(false);
 
   protected readonly clock = clock;
   protected readonly km = km;
@@ -352,27 +323,14 @@ export default class RunRecap {
     this.http.get<{ runs: Run[] }>('/api/runs').subscribe({
       next: (body) => this.run.set(body.runs.find((r) => r.start === this.start()) ?? null),
     });
-    this.loadRecap();
-  }
-
-  /** The run's saved recap, or (when there's none, or for "Another take") a fresh one from Claude: a few
-   *  seconds, and different every time. */
-  protected loadRecap(fresh = false): void {
-    this.loading.set(true);
-    this.recapError.set('');
-    this.recap.set(null);
+    // The run's saved recap, or (the first time) a new one from Claude, which takes a few seconds.
     // encodeURIComponent, not HttpParams: the start time's "+" must reach the API as "+", not a space.
-    const url = `/api/recap?start=${encodeURIComponent(this.start())}${fresh ? '&fresh=true' : ''}`;
-    this.http.get<Recap>(url).subscribe({
+    this.http.get<Recap>(`/api/recap?start=${encodeURIComponent(this.start())}`).subscribe({
       next: (recap) => {
         this.recap.set(recap);
         this.run.set(recap.run);
-        this.loading.set(false);
       },
-      error: (e) => {
-        this.recapError.set(e.error?.detail ?? "The recap couldn't be written. Try again shortly.");
-        this.loading.set(false);
-      },
+      error: (e) => this.recapError.set(e.error?.detail ?? "The recap couldn't be written. Try again shortly."),
     });
   }
 
