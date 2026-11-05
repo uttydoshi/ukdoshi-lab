@@ -16,7 +16,7 @@ RUN = {
     "duration_s": 2656,
     "distance_m": 8200,
     "heart_rate": {"average": 152, "minimum": 98, "maximum": 171},
-    "splits": {"unit": "km", "seconds": [324, 318, 321, 330, 336, 327, 318, 312]},
+    "splits": {"unit": "km", "seconds": [324, 318, 321, 330, 336, 327, 318, 312, 65]},  # last: the final 0.2 km
     "elevation_gain_m": 42,
     "temperature_c": 25.5,
     "humidity_pct": 65,

@@ -2,7 +2,7 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 from mangum import Mangum
 
-from app import claude, origin, runs
+from app import claude, origin, recap, runs
 
 app = FastAPI(title="Utty's lab API")
 
@@ -51,6 +51,23 @@ def import_runs(batch: runs.RunBatch):
 @app.get("/api/runs")
 def list_runs():
     return {"runs": runs.all_runs()}
+
+
+@app.get("/api/recap")
+def run_recap(start: str | None = None):
+    """Minnie and Maverick review one run (by its start time), or the latest run. Written fresh each time."""
+    if start:
+        run = runs.get(start)
+    else:
+        latest = runs.all_runs()
+        run = latest[0] if latest else None
+    if run is None:
+        return JSONResponse({"detail": "No such run"}, status_code=404)
+    try:
+        run_facts, review = recap.write(run)
+    except claude.ClaudeUnavailable as e:
+        return JSONResponse({"detail": str(e)}, status_code=503)
+    return {"run": run, "facts": run_facts, "lines": review.lines, "model": claude.MODEL}
 
 
 # Entry point for AWS Lambda (API Gateway HTTP API events -> ASGI).

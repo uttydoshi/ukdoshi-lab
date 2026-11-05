@@ -1,6 +1,7 @@
 from functools import cache
 
 import anthropic
+from pydantic import BaseModel
 
 from app.secrets import read_secret
 
@@ -19,18 +20,16 @@ def client() -> anthropic.Anthropic:
     return anthropic.Anthropic(api_key=api_key) if api_key else anthropic.Anthropic()
 
 
-def ask(system: str, prompt: str) -> str:
-    """One question, one short answer."""
+def _call(method, **kwargs):
+    """One request with the lab's defaults, turning failures into ClaudeUnavailable."""
     try:
-        response = client().beta.messages.create(
+        response = method(
             model=MODEL,
             max_tokens=16000,
-            output_config={"effort": "low"},  # short, playful replies don't need deep thinking
             # If Claude declines, Anthropic re-runs the request on its recommended fallback model.
             betas=["server-side-fallback-2026-07-01"],
             fallbacks="default",
-            system=system,
-            messages=[{"role": "user", "content": prompt}],
+            **kwargs,
         )
     except anthropic.AuthenticationError as e:
         # Forget the key, so one stored since (scripts/claude-key.sh) is picked up on the next request.
@@ -44,4 +43,29 @@ def ask(system: str, prompt: str) -> str:
 
     if response.stop_reason == "refusal":
         raise ClaudeUnavailable("Claude declined to answer that.")
+    return response
+
+
+def ask(system: str, prompt: str) -> str:
+    """One question, one short answer."""
+    response = _call(
+        client().beta.messages.create,
+        output_config={"effort": "low"},  # short, playful replies don't need deep thinking
+        system=system,
+        messages=[{"role": "user", "content": prompt}],
+    )
     return "".join(block.text for block in response.content if block.type == "text").strip()
+
+
+def ask_for[T: BaseModel](system: str, prompt: str, output: type[T], effort: str = "medium") -> T:
+    """One question, answered in the shape of `output` (checked against its schema)."""
+    response = _call(
+        client().beta.messages.parse,
+        output_config={"effort": effort},
+        output_format=output,
+        system=system,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    if response.parsed_output is None:
+        raise ClaudeUnavailable("Claude's answer wasn't in the expected shape.")
+    return response.parsed_output

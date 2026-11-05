@@ -99,7 +99,8 @@ def to_run(workout: Element) -> dict:
 def splits(workout: Element, distance_m: int | None) -> dict | None:
     """The Watch marks each whole kilometre and each whole mile as 'segment' events, mixed together. Each split
     starts where the previous one in its own set ended, so following those chains separates the sets. Only the
-    kilometre set is kept, and only when its length fits the distance, so recaps never mix units."""
+    kilometre set is kept, and only when its length fits the distance, so recaps never mix units. Its last entry
+    is the final part-kilometre."""
     segments = []
     for event in workout.iter("WorkoutEvent"):
         if event.get("type") == "HKWorkoutEventTypeSegment" and event.get("date"):

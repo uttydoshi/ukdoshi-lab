@@ -25,7 +25,11 @@ class HeartRate(BaseModel):
 
 class Splits(BaseModel):
     unit: Literal["km"]
-    seconds: list[int]
+    seconds: list[int]  # each whole kilometre, then the last part-kilometre (as the Watch records them)
+
+    def whole(self, distance_m: int) -> list[int]:
+        """Only the whole kilometres: the last entry is a part-kilometre unless the run ended exactly on one."""
+        return self.seconds[: distance_m // 1000]
 
 
 class Run(BaseModel):
@@ -63,6 +67,11 @@ def add(run: Run) -> bool:
             return False
         raise
     return True
+
+
+def get(start: str) -> Run | None:
+    item = _table().get_item(Key={"start": start}).get("Item")
+    return Run.model_validate(item) if item else None
 
 
 def all_runs() -> list[Run]:
