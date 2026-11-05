@@ -17,11 +17,34 @@ export interface RecapLine {
   text: string;
 }
 
+/** One step of a trace (see backend/app/trace.py). Claude calls carry OpenTelemetry's gen_ai.* attributes. */
+export interface Span {
+  span_id: string;
+  parent_id: string | null;
+  name: string;
+  kind: 'request' | 'data' | 'code' | 'llm';
+  start: number; // Unix time in seconds
+  end: number | null;
+  duration_ms: number | null;
+  status: 'ok' | 'error';
+  note: string;
+  attributes: Record<string, string | number>;
+}
+
+export interface Trace {
+  trace_id: string;
+  name: string;
+  spans: Span[]; // in the order they started; the first is the whole request
+}
+
 export interface Recap {
   run: Run;
+  run_start: string;
+  written: string;
   facts: string[];
   lines: RecapLine[];
   model: string;
+  trace: Trace;
 }
 
 /** 2656 -> '44:16', 3723 -> '1:02:03' (as the recap's facts write it). */

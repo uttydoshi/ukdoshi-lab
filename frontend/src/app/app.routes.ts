@@ -12,5 +12,10 @@ export const routes: Routes = [
     title: 'Run recap · The Couch Critics',
     loadComponent: () => import('./pages/couch-critics/run-recap'),
   },
+  {
+    path: 'couch-critics/runs/:start/behind-the-scenes',
+    title: 'Behind the scenes · The Couch Critics',
+    loadComponent: () => import('./pages/couch-critics/behind-the-scenes'),
+  },
   { path: '**', redirectTo: '' },
 ];

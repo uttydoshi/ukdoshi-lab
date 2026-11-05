@@ -223,9 +223,26 @@ import { clock, km, pace, Recap, RecapLine, Run, runName, when, wholeSplits } fr
       opacity: 0.6;
     }
 
-    .again:focus-visible {
+    .again:focus-visible,
+    .behind:focus-visible {
       outline: 2px solid var(--accent);
       outline-offset: 2px;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem 1.25rem;
+    }
+
+    .behind {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+      font-weight: 600;
+      color: var(--accent);
+      text-decoration: none;
     }
   `,
   template: `
@@ -289,7 +306,12 @@ import { clock, km, pace, Recap, RecapLine, Run, runName, when, wholeSplits } fr
             }
           </div>
         }
-        <button type="button" class="again" (click)="loadRecap(true)" [disabled]="loading()">Another take</button>
+        <div class="actions">
+          <button type="button" class="again" (click)="loadRecap(true)" [disabled]="loading()">Another take</button>
+          @if (recap()) {
+            <a class="behind" routerLink="behind-the-scenes">Behind the scenes ›</a>
+          }
+        </div>
       </section>
     </article>
   `,
