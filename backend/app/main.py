@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from mangum import Mangum
 
-from app import origin
+from app import claude, origin
 
 app = FastAPI(title="Utty's lab API")
 
@@ -26,6 +26,19 @@ async def no_store(request: Request, call_next):
 @app.get("/api/hello")
 def hello():
     return {"message": "Hello World"}
+
+
+@app.get("/api/hello-claude")
+def hello_claude():
+    """A first call to Claude: proves the key, the SDK and the network path all work."""
+    try:
+        message = claude.ask(
+            system="You are greeting visitors to Utty's lab, a small site of AI experiments. Be warm and brief.",
+            prompt="Say hello in one short, cheerful sentence.",
+        )
+    except claude.ClaudeUnavailable as e:
+        return JSONResponse({"detail": str(e)}, status_code=503)
+    return {"message": message, "model": claude.MODEL}
 
 
 # Entry point for AWS Lambda (API Gateway HTTP API events -> ASGI).

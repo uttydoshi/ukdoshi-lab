@@ -1,21 +1,15 @@
 import hmac
-import os
-from functools import cache
+
+from app.secrets import read_secret
 
 # CloudFront adds this header, with a secret value, to every request it forwards to the API. API Gateway also has
 # its own public address that skips CloudFront (and so the site password); requests there don't have the header.
 HEADER = "x-origin-verify"
 
 
-@cache
 def expected_secret() -> str | None:
-    """The secret CloudFront sends, read once from Secrets Manager. None when running locally (no secret set)."""
-    arn = os.environ.get("ORIGIN_SECRET_ARN")
-    if not arn:
-        return None
-    import boto3  # provided by the Lambda runtime
-
-    return boto3.client("secretsmanager").get_secret_value(SecretId=arn)["SecretString"]
+    """The secret CloudFront sends. None when running locally (no secret set)."""
+    return read_secret("ORIGIN_SECRET_ARN")
 
 
 def from_cloudfront(given: str | None) -> bool:

@@ -127,6 +127,16 @@ class SiteStack(Stack):
             removal_policy=RemovalPolicy.DESTROY,  # nothing to keep: a new stack would generate a new one
         )
 
+        # --- Claude API key: each copy has its own, so each can have its own spend limit in the Anthropic Console.
+        # Created with a random placeholder; the real key goes in with scripts/claude-key.sh, never in code. ---
+        claude_key = secretsmanager.Secret(
+            self,
+            "ClaudeApiKey",
+            secret_name=stage.secret_name("claude-api-key"),
+            description=f"Claude API key for {stage.site_domain} (set with scripts/claude-key.sh)",
+            removal_policy=RemovalPolicy.RETAIN,  # put in by hand, so keep it if the stack goes
+        )
+
         # --- Backend: FastAPI on Lambda behind an HTTP API ---
         api_fn = lambda_.Function(
             self,
@@ -148,13 +158,16 @@ class SiteStack(Stack):
                 ),
             ),
             memory_size=512,
-            timeout=Duration.seconds(10),
+            # Longer than the main site's 10s: Claude can take several seconds. API Gateway stops waiting at 30s.
+            timeout=Duration.seconds(29),
             environment={
                 "STAGE": stage.name,
                 "ORIGIN_SECRET_ARN": origin_secret.secret_arn,
+                "CLAUDE_API_KEY_SECRET": claude_key.secret_arn,
             },
         )
         origin_secret.grant_read(api_fn)
+        claude_key.grant_read(api_fn)
 
         http_api = apigw.HttpApi(
             self,
