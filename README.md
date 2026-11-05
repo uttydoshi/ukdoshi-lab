@@ -31,7 +31,7 @@ working as my main site, [ukdoshi.com](https://ukdoshi.com) ([source](https://gi
 | [`frontend/`](frontend) | The Angular site: pages in `src/app/pages`, staging markers in `src/app/staging.ts` |
 | [`backend/`](backend) | The FastAPI app (`app/`); tests in `tests/` |
 | [`infra/`](infra) | The AWS CDK app: a site stack (site and API) for each of live and staging, and the role GitHub deploys with |
-| [`scripts/`](scripts) | Owner tools: set the password each copy asks for, and its Claude API key |
+| [`scripts/`](scripts) | Owner tools: import runs from Apple Health, set each copy's password and Claude API key |
 | [`.github/workflows/`](.github/workflows) | The deploy pipeline |
 
 No secrets live in this repo. The IDs you'll come across (like the AWS account) are public by design; the
@@ -120,6 +120,18 @@ cdk deploy UkdoshiLabGithubDeploy
 **Passwords.** `scripts/site-password.sh` sets the username and password lab.ukdoshi.com asks for;
 `scripts/site-password.sh --staging` does the same for the staging copy. The password covers the API
 (`/api/*`) too. They're stored in AWS, never in this repo.
+
+**Runs.** Runs come from Apple Health, recorded by Apple Watch: numbers only (distance, time, heart rate,
+kilometre splits, elevation, weather), never GPS routes. In the Health app, tap your profile picture, then
+**Export All Health Data**, and AirDrop `export.zip` to your Mac (outside this repo). Then:
+
+```bash
+scripts/import-runs.py ~/Downloads/export.zip                    # check: writes runs.json, shows a summary
+scripts/import-runs.py ~/Downloads/export.zip --send --staging   # send to the staging copy
+scripts/import-runs.py ~/Downloads/export.zip --send             # send to lab.ukdoshi.com
+```
+
+Re-importing is safe: runs already there are skipped. The script reads each copy's import key from AWS.
 
 **Claude API keys.** Each copy has its own key, so each can have its own spend limit in the Anthropic Console.
 `scripts/claude-key.sh` stores live's key in AWS Secrets Manager; `scripts/claude-key.sh --staging` stores

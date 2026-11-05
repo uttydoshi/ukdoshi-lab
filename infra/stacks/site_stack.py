@@ -18,6 +18,7 @@ from aws_cdk import aws_apigatewayv2_integrations as integrations
 from aws_cdk import aws_certificatemanager as acm
 from aws_cdk import aws_cloudfront as cloudfront
 from aws_cdk import aws_cloudfront_origins as origins
+from aws_cdk import aws_dynamodb as dynamodb
 from aws_cdk import aws_lambda as lambda_
 from aws_cdk import aws_route53 as route53
 from aws_cdk import aws_route53_targets as targets
@@ -51,6 +52,10 @@ async function handler(event) {
   try {
     expected = await store.get('basic-auth');
   } catch (e) {}
+  // The import script sends runs with its own key instead of the site password; the API checks that key.
+  if (request.method === 'POST' && request.uri === '/api/runs' && request.headers['x-import-key']) {
+    return request;
+  }
   var given = request.headers.authorization ? request.headers.authorization.value : '';
   if (!expected || given !== 'Basic ' + expected) {
     return {
@@ -137,6 +142,27 @@ class SiteStack(Stack):
             removal_policy=RemovalPolicy.RETAIN,  # put in by hand, so keep it if the stack goes
         )
 
+        # --- Runs from Apple Health (numbers only, never GPS routes), keyed by start time. They can be
+        # re-imported from a Health export at any time, so nothing here needs protecting from deletion. ---
+        runs_table = dynamodb.TableV2(
+            self,
+            "RunsTable",
+            table_name=stage.table_name("runs"),
+            partition_key=dynamodb.Attribute(name="start", type=dynamodb.AttributeType.STRING),
+            removal_policy=RemovalPolicy.DESTROY,
+        )
+
+        # --- Import key: scripts/import-runs.py --send reads it from here and sends it with the runs. AWS generates
+        # it, so it never needs typing or copying. ---
+        import_key = secretsmanager.Secret(
+            self,
+            "ImportKey",
+            secret_name=stage.secret_name("import-key"),
+            description=f"Key scripts/import-runs.py sends to add runs to {stage.site_domain}",
+            generate_secret_string=secretsmanager.SecretStringGenerator(password_length=48, exclude_punctuation=True),
+            removal_policy=RemovalPolicy.DESTROY,
+        )
+
         # --- Backend: FastAPI on Lambda behind an HTTP API ---
         api_fn = lambda_.Function(
             self,
@@ -164,10 +190,14 @@ class SiteStack(Stack):
                 "STAGE": stage.name,
                 "ORIGIN_SECRET_ARN": origin_secret.secret_arn,
                 "CLAUDE_API_KEY_SECRET": claude_key.secret_arn,
+                "IMPORT_KEY_SECRET": import_key.secret_arn,
+                "RUNS_TABLE": runs_table.table_name,
             },
         )
         origin_secret.grant_read(api_fn)
         claude_key.grant_read(api_fn)
+        import_key.grant_read(api_fn)
+        runs_table.grant_read_write_data(api_fn)
 
         http_api = apigw.HttpApi(
             self,

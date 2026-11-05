@@ -15,9 +15,18 @@ class Stage:
     def stack_name(self, part: str) -> str:
         return f"UkdoshiLab{self.name.capitalize()}{part}"
 
+    @property
+    def prefix(self) -> str:
+        """ukdoshi-lab or ukdoshi-lab-staging"""
+        return f"ukdoshi-lab{f'-{self.name}' if self.name else ''}"
+
     def secret_name(self, part: str) -> str:
         """e.g. ukdoshi-lab/claude-api-key, ukdoshi-lab-staging/claude-api-key"""
-        return f"ukdoshi-lab{f'-{self.name}' if self.name else ''}/{part}"
+        return f"{self.prefix}/{part}"
+
+    def table_name(self, part: str) -> str:
+        """e.g. ukdoshi-lab-runs, ukdoshi-lab-staging-runs"""
+        return f"{self.prefix}-{part}"
 
 
 # Password-protected and hidden from search engines while the lab is being built.

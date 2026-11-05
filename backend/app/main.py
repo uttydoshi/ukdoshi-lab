@@ -1,8 +1,8 @@
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 from mangum import Mangum
 
-from app import claude, origin
+from app import claude, origin, runs
 
 app = FastAPI(title="Utty's lab API")
 
@@ -39,6 +39,18 @@ def hello_claude():
     except claude.ClaudeUnavailable as e:
         return JSONResponse({"detail": str(e)}, status_code=503)
     return {"message": message, "model": claude.MODEL}
+
+
+@app.post("/api/runs", dependencies=[Depends(runs.import_key_matches)])
+def import_runs(batch: runs.RunBatch):
+    """Adds runs sent by scripts/import-runs.py --send; runs already here are skipped, so re-importing is safe."""
+    added = sum(runs.add(run) for run in batch.runs)
+    return {"added": added, "already_had": len(batch.runs) - added}
+
+
+@app.get("/api/runs")
+def list_runs():
+    return {"runs": runs.all_runs()}
 
 
 # Entry point for AWS Lambda (API Gateway HTTP API events -> ASGI).

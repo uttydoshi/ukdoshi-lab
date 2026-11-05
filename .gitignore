@@ -20,3 +20,11 @@ frontend/.angular/
 
 # Local notes for Claude (kept off GitHub for now)
 CLAUDE.md
+
+# Apple Health exports and GPS routes: personal data, never in the repo
+export.zip
+export.xml
+export_cda.xml
+apple_health_export/
+*.gpx
+runs.json
