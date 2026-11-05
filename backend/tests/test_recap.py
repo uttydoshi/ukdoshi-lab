@@ -55,6 +55,14 @@ def test_recap_of_the_latest_run(stored_run, monkeypatch):
     body = client.get("/api/recap").json()
     assert body["lines"] == [{"speaker": "Minnie", "text": "8.2 km. Where was my BALL?"}]
     assert "Distance: 8.2 km" in body["facts"]
+    spans = body["trace"]["spans"]
+    assert [(s["name"], s["kind"]) for s in spans] == [
+        ("Recap", "request"),
+        ("Fetch the run", "data"),
+        ("Write out the facts", "code"),
+        ("Write the recap", "llm"),
+    ]
+    assert spans[3]["note"] == "Minnie and Maverick, 1 line, 6 words"
 
 
 def test_recap_of_a_missing_run(stored_run):

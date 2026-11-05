@@ -2,7 +2,7 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 from mangum import Mangum
 
-from app import claude, origin, recap, runs
+from app import claude, origin, recap, runs, trace
 
 app = FastAPI(title="Utty's lab API")
 
@@ -55,19 +55,23 @@ def list_runs():
 
 @app.get("/api/recap")
 def run_recap(start: str | None = None):
-    """Minnie and Maverick review one run (by its start time), or the latest run. Written fresh each time."""
-    if start:
-        run = runs.get(start)
-    else:
-        latest = runs.all_runs()
-        run = latest[0] if latest else None
-    if run is None:
-        return JSONResponse({"detail": "No such run"}, status_code=404)
-    try:
-        run_facts, review = recap.write(run)
-    except claude.ClaudeUnavailable as e:
-        return JSONResponse({"detail": str(e)}, status_code=503)
-    return {"run": run, "facts": run_facts, "lines": review.lines, "model": claude.MODEL}
+    """Minnie and Maverick review one run (by its start time), or the latest run. Written fresh each time, with a
+    trace of every step."""
+    with trace.start("Recap") as recap_trace:
+        with trace.step("Fetch the run", "data") as span:
+            if start:
+                run = runs.get(start)
+            else:
+                latest = runs.all_runs()
+                run = latest[0] if latest else None
+            span.note = "Distance, time, splits and heart rate, from the runs table"
+        if run is None:
+            return JSONResponse({"detail": "No such run"}, status_code=404)
+        try:
+            run_facts, review = recap.write(run)
+        except claude.ClaudeUnavailable as e:
+            return JSONResponse({"detail": str(e)}, status_code=503)
+    return {"run": run, "facts": run_facts, "lines": review.lines, "model": claude.MODEL, "trace": recap_trace}
 
 
 # Entry point for AWS Lambda (API Gateway HTTP API events -> ASGI).

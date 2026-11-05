@@ -5,7 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from app import claude
+from app import claude, trace
 from app.runs import Run
 
 SYSTEM = """\
@@ -91,6 +91,13 @@ def facts(run: Run) -> list[str]:
 
 
 def write(run: Run) -> tuple[list[str], Recap]:
-    run_facts = facts(run)
+    with trace.step("Write out the facts", "code") as span:
+        run_facts = facts(run)
+        span.note = f"{len(run_facts)} facts, every number written out in advance"
     prompt = "Run facts:\n" + "\n".join(f"- {f}" for f in run_facts) + "\n\nWrite the review."
-    return run_facts, claude.ask_for(SYSTEM, prompt, Recap)
+    with trace.step("Write the recap", "llm") as span:
+        review = claude.ask_for(SYSTEM, prompt, Recap)
+        words = sum(len(line.text.split()) for line in review.lines)
+        lines = len(review.lines)
+        span.note = f"Minnie and Maverick, {lines} line{'' if lines == 1 else 's'}, {words} words"
+    return run_facts, review

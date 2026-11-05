@@ -3,6 +3,7 @@ from functools import cache
 import anthropic
 from pydantic import BaseModel
 
+from app import trace
 from app.secrets import read_secret
 
 MODEL = "claude-opus-5-5"
@@ -21,9 +22,18 @@ def client() -> anthropic.Anthropic:
 
 
 def _call(method, **kwargs):
-    """One request with the lab's defaults, turning failures into ClaudeUnavailable."""
+    """One request with the lab's defaults, traced, turning failures into ClaudeUnavailable."""
+    with trace.llm_step("Ask Claude") as span:
+        response = _send(method, **kwargs)
+        trace.record_llm(span, MODEL, response)
+        if response.stop_reason == "refusal":
+            raise ClaudeUnavailable("Claude declined to answer that.")
+        return response
+
+
+def _send(method, **kwargs):
     try:
-        response = method(
+        return method(
             model=MODEL,
             max_tokens=16000,
             # If Claude declines, Anthropic re-runs the request on its recommended fallback model.
@@ -40,10 +50,6 @@ def _call(method, **kwargs):
         raise ClaudeUnavailable("Claude is busy right now. Try again in a minute.") from e
     except (anthropic.APIStatusError, anthropic.APIConnectionError) as e:
         raise ClaudeUnavailable("Claude couldn't be reached. Try again shortly.") from e
-
-    if response.stop_reason == "refusal":
-        raise ClaudeUnavailable("Claude declined to answer that.")
-    return response
 
 
 def ask(system: str, prompt: str) -> str:
