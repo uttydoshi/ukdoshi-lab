@@ -54,9 +54,9 @@ def list_runs():
 
 
 @app.get("/api/recap")
-def run_recap(start: str | None = None):
-    """Minnie and Maverick review one run (by its start time), or the latest run. Written fresh each time, with a
-    trace of every step."""
+def run_recap(start: str | None = None, fresh: bool = False):
+    """Minnie and Maverick review one run (by its start time), or the latest run. The run's newest saved recap is
+    reused unless `fresh` asks for another; a new one is saved with the trace of every step that wrote it."""
     with trace.start("Recap") as recap_trace:
         with trace.step("Fetch the run", "data") as span:
             if start:
@@ -67,11 +67,15 @@ def run_recap(start: str | None = None):
             span.note = "Distance, time, splits and heart rate, from the runs table"
         if run is None:
             return JSONResponse({"detail": "No such run"}, status_code=404)
+        saved = None if fresh else recap.latest(run.start)
+        if saved:
+            return {"run": run} | saved.model_dump()
         try:
             run_facts, review = recap.write(run)
         except claude.ClaudeUnavailable as e:
             return JSONResponse({"detail": str(e)}, status_code=503)
-    return {"run": run, "facts": run_facts, "lines": review.lines, "model": claude.MODEL, "trace": recap_trace}
+    # Saved once the trace has ended, so its timings cover the whole request.
+    return {"run": run} | recap.save(run, run_facts, review, recap_trace).model_dump()
 
 
 # Entry point for AWS Lambda (API Gateway HTTP API events -> ASGI).

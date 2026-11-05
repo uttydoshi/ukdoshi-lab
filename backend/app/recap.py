@@ -1,12 +1,18 @@
 """The Couch Critics: Minnie and Maverick review a run, using only numbers the lab has written out for them."""
 
-from datetime import datetime
+import os
+from datetime import UTC, datetime
+from functools import lru_cache
 from typing import Literal
 
+import boto3
+from boto3.dynamodb.conditions import Key
 from pydantic import BaseModel
 
 from app import claude, trace
 from app.runs import Run
+
+TABLE_NAME = os.environ.get("RECAPS_TABLE", "ukdoshi-lab-staging-recaps")
 
 SYSTEM = """\
 You write "The Couch Critics": short, funny run reviews by Utty's two toy poodles, who stayed home on the couch \
@@ -49,6 +55,17 @@ class Line(BaseModel):
 
 class Recap(BaseModel):
     lines: list[Line]
+
+
+class SavedRecap(BaseModel):
+    """A recap as stored: what the dogs said, the facts they were given, and the trace of how it was written."""
+
+    run_start: str
+    written: str  # when, in UTC; with run_start, the recap's id
+    facts: list[str]
+    lines: list[Line]
+    model: str
+    trace: trace.Trace
 
 
 def clock(seconds: int) -> str:
@@ -101,3 +118,32 @@ def write(run: Run) -> tuple[list[str], Recap]:
         lines = len(review.lines)
         span.note = f"Minnie and Maverick, {lines} line{'' if lines == 1 else 's'}, {words} words"
     return run_facts, review
+
+
+@lru_cache
+def _table():
+    return boto3.resource("dynamodb").Table(TABLE_NAME)
+
+
+def save(run: Run, run_facts: list[str], review: Recap, recap_trace: trace.Trace) -> SavedRecap:
+    saved = SavedRecap(
+        run_start=run.start,
+        written=datetime.now(UTC).isoformat(timespec="milliseconds"),
+        facts=run_facts,
+        lines=review.lines,
+        model=claude.MODEL,
+        trace=recap_trace,
+    )
+    # The trace is stored as JSON text, so its timings needn't become DynamoDB Decimals.
+    item = saved.model_dump(mode="json") | {"trace": recap_trace.model_dump_json()}
+    _table().put_item(Item=item)
+    return saved
+
+
+def latest(run_start: str) -> SavedRecap | None:
+    """The run's newest recap, if it has one."""
+    items = _table().query(KeyConditionExpression=Key("run_start").eq(run_start), ScanIndexForward=False, Limit=1)
+    if not items["Items"]:
+        return None
+    item = items["Items"][0]
+    return SavedRecap.model_validate(item | {"trace": trace.Trace.model_validate_json(item["trace"])})

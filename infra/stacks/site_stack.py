@@ -152,6 +152,17 @@ class SiteStack(Stack):
             removal_policy=RemovalPolicy.DESTROY,
         )
 
+        # --- Recaps, each with the trace of how it was written: a run's recaps sit together, newest last. Unlike
+        # runs they can't be made again the same way (and evals will use them), so they're kept if the stack goes. ---
+        recaps_table = dynamodb.TableV2(
+            self,
+            "RecapsTable",
+            table_name=stage.table_name("recaps"),
+            partition_key=dynamodb.Attribute(name="run_start", type=dynamodb.AttributeType.STRING),
+            sort_key=dynamodb.Attribute(name="written", type=dynamodb.AttributeType.STRING),
+            removal_policy=RemovalPolicy.RETAIN,
+        )
+
         # --- Import key: scripts/import-runs.py --send reads it from here and sends it with the runs. AWS generates
         # it, so it never needs typing or copying. ---
         import_key = secretsmanager.Secret(
@@ -192,12 +203,14 @@ class SiteStack(Stack):
                 "CLAUDE_API_KEY_SECRET": claude_key.secret_arn,
                 "IMPORT_KEY_SECRET": import_key.secret_arn,
                 "RUNS_TABLE": runs_table.table_name,
+                "RECAPS_TABLE": recaps_table.table_name,
             },
         )
         origin_secret.grant_read(api_fn)
         claude_key.grant_read(api_fn)
         import_key.grant_read(api_fn)
         runs_table.grant_read_write_data(api_fn)
+        recaps_table.grant_read_write_data(api_fn)
 
         http_api = apigw.HttpApi(
             self,

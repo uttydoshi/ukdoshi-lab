@@ -289,7 +289,7 @@ import { clock, km, pace, Recap, RecapLine, Run, runName, when, wholeSplits } fr
             }
           </div>
         }
-        <button type="button" class="again" (click)="loadRecap()" [disabled]="loading()">Another take</button>
+        <button type="button" class="again" (click)="loadRecap(true)" [disabled]="loading()">Another take</button>
       </section>
     </article>
   `,
@@ -333,13 +333,15 @@ export default class RunRecap {
     this.loadRecap();
   }
 
-  /** A fresh recap from Claude: a few seconds, and different every time. */
-  protected loadRecap(): void {
+  /** The run's saved recap, or (when there's none, or for "Another take") a fresh one from Claude: a few
+   *  seconds, and different every time. */
+  protected loadRecap(fresh = false): void {
     this.loading.set(true);
     this.recapError.set('');
     this.recap.set(null);
     // encodeURIComponent, not HttpParams: the start time's "+" must reach the API as "+", not a space.
-    this.http.get<Recap>(`/api/recap?start=${encodeURIComponent(this.start())}`).subscribe({
+    const url = `/api/recap?start=${encodeURIComponent(this.start())}${fresh ? '&fresh=true' : ''}`;
+    this.http.get<Recap>(url).subscribe({
       next: (recap) => {
         this.recap.set(recap);
         this.run.set(recap.run);
