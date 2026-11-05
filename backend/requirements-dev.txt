@@ -1,0 +1,6 @@
+-r requirements.txt
+uvicorn>=0.30
+pytest>=8
+httpx>=0.27
+# Provided by the Lambda runtime, so only needed locally.
+boto3>=1.35

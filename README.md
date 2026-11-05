@@ -17,17 +17,19 @@ working as my main site, [ukdoshi.com](https://ukdoshi.com) ([source](https://gi
 | | |
 |---|---|
 | **Frontend** | Angular (TypeScript), served from S3 through CloudFront |
+| **Backend** | Python (FastAPI) on AWS Lambda, behind API Gateway |
 | **Infrastructure** | All of it defined in Python with the AWS CDK |
 | **CI/CD** | GitHub Actions: tests, builds and deploys every push, logging in to AWS with OIDC (no stored keys) |
 | **Environments** | `staging` branch → staging copy · `main` branch → lab.ukdoshi.com (both password-protected for now) |
-| **Coming next** | A Python (FastAPI) backend on AWS Lambda, the Claude API, tracing of every call, and evals gated in CI |
+| **Coming next** | The Claude API, tracing of every call, and evals gated in CI |
 
 ## What's in the repo
 
 | Folder | What's inside |
 |---|---|
 | [`frontend/`](frontend) | The Angular site: pages in `src/app/pages`, staging markers in `src/app/staging.ts` |
-| [`infra/`](infra) | The AWS CDK app: a site stack for each of live and staging, and the role GitHub deploys with |
+| [`backend/`](backend) | The FastAPI app (`app/`); tests in `tests/` |
+| [`infra/`](infra) | The AWS CDK app: a site stack (site and API) for each of live and staging, and the role GitHub deploys with |
 | [`scripts/`](scripts) | Owner tools: set the password each copy asks for |
 | [`.github/workflows/`](.github/workflows) | The deploy pipeline |
 
@@ -36,10 +38,19 @@ passwords are stored in AWS, and so will the API keys be.
 
 ## Running it locally
 
-You need Node.js 24.
+You need Python 3.13 and Node.js 24. In two terminals (ports 8001 and 4300, so the lab can run beside the main
+site on 8000 and 4200):
 
 ```bash
-# Frontend: http://localhost:4300 (4300, so it can run beside the main site on 4200)
+# Backend: http://localhost:8001/api/hello
+cd backend
+python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
+.venv/bin/python -m pytest                    # run the tests
+.venv/bin/uvicorn app.main:app --reload --port 8001   # start the API
+```
+
+```bash
+# Frontend: http://localhost:4300 (calls to /api go to the backend above)
 cd frontend
 npm install
 npm test -- --watch=false                     # run the tests
@@ -48,8 +59,8 @@ npm start                                     # start the site
 
 ## How changes go live
 
-Every push runs [`deploy.yml`](.github/workflows/deploy.yml): frontend tests, a production build, then a CDK
-deploy. A failing test stops the deploy.
+Every push runs [`deploy.yml`](.github/workflows/deploy.yml): backend tests, frontend tests, a production
+build, then a CDK deploy. A failing test stops the deploy.
 
 | Branch | Deploys to | Stacks |
 |---|---|---|
@@ -96,8 +107,8 @@ cdk deploy UkdoshiLabGithubDeploy
 ```
 
 **Passwords.** `scripts/site-password.sh` sets the username and password lab.ukdoshi.com asks for;
-`scripts/site-password.sh --staging` does the same for the staging copy. They're stored in AWS, never in this
-repo.
+`scripts/site-password.sh --staging` does the same for the staging copy. The password covers the API
+(`/api/*`) too. They're stored in AWS, never in this repo.
 
 ---
 
