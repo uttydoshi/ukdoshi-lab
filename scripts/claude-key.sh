@@ -15,6 +15,9 @@ else
   SECRET=ukdoshi-lab/claude-api-key SITE=lab.ukdoshi.com
 fi
 
+# Check the AWS login first, so a key isn't pasted only to fail.
+aws sts get-caller-identity >/dev/null || { echo "Log in first: aws sso login --profile $AWS_PROFILE" >&2; exit 1; }
+
 read -r -s -p "Claude API key for $SITE: " key; echo
 [[ "$key" == sk-ant-* ]] || { echo "That doesn't look like a Claude API key (they start with sk-ant-)." >&2; exit 1; }
 
