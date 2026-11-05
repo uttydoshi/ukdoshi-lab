@@ -23,6 +23,7 @@ from aws_cdk import aws_route53 as route53
 from aws_cdk import aws_route53_targets as targets
 from aws_cdk import aws_s3 as s3
 from aws_cdk import aws_s3_deployment as s3deploy
+from aws_cdk import aws_secretsmanager as secretsmanager
 from constructs import Construct
 
 from stacks.stage import ZONE_NAME, Stage
@@ -113,6 +114,19 @@ class SiteStack(Stack):
 
         zone = route53.HostedZone.from_lookup(self, "Zone", domain_name=ZONE_NAME)
 
+        # --- Origin secret: CloudFront sends it with every API request, and the API refuses requests without it,
+        # so API Gateway's own public address can't be used to skip CloudFront and the site password. AWS generates
+        # it; the template only holds a reference, never the value. ---
+        origin_secret = secretsmanager.Secret(
+            self,
+            "OriginSecret",
+            description=f"Header value CloudFront sends to the {stage.site_domain} API",
+            generate_secret_string=secretsmanager.SecretStringGenerator(
+                password_length=48, exclude_punctuation=True
+            ),
+            removal_policy=RemovalPolicy.DESTROY,  # nothing to keep: a new stack would generate a new one
+        )
+
         # --- Backend: FastAPI on Lambda behind an HTTP API ---
         api_fn = lambda_.Function(
             self,
@@ -137,8 +151,10 @@ class SiteStack(Stack):
             timeout=Duration.seconds(10),
             environment={
                 "STAGE": stage.name,
+                "ORIGIN_SECRET_ARN": origin_secret.secret_arn,
             },
         )
+        origin_secret.grant_read(api_fn)
 
         http_api = apigw.HttpApi(
             self,
@@ -240,7 +256,8 @@ class SiteStack(Stack):
             additional_behaviors={
                 "/api/*": cloudfront.BehaviorOptions(
                     origin=origins.HttpOrigin(
-                        f"{http_api.api_id}.execute-api.{self.region}.amazonaws.com"
+                        f"{http_api.api_id}.execute-api.{self.region}.amazonaws.com",
+                        custom_headers={"X-Origin-Verify": origin_secret.secret_value.unsafe_unwrap()},
                     ),
                     viewer_protocol_policy=cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
                     response_headers_policy=headers,

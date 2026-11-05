@@ -1,7 +1,18 @@
 from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from mangum import Mangum
 
+from app import origin
+
 app = FastAPI(title="Utty's lab API")
+
+
+@app.middleware("http")
+async def only_via_cloudfront(request: Request, call_next):
+    """Refuses requests that didn't come through CloudFront, so the site password can't be skipped."""
+    if not origin.from_cloudfront(request.headers.get(origin.HEADER)):
+        return JSONResponse({"detail": "Forbidden"}, status_code=403)
+    return await call_next(request)
 
 
 @app.middleware("http")
