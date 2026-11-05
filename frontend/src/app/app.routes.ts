@@ -7,5 +7,10 @@ export const routes: Routes = [
     title: 'The Couch Critics · Lab',
     loadComponent: () => import('./pages/couch-critics/couch-critics'),
   },
+  {
+    path: 'couch-critics/runs/:start',
+    title: 'Run recap · The Couch Critics',
+    loadComponent: () => import('./pages/couch-critics/run-recap'),
+  },
   { path: '**', redirectTo: '' },
 ];
